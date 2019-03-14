@@ -15,17 +15,21 @@ td {  /* Table  */
 }
 </style>
 
-```{r setoptions, warning=FALSE,message=FALSE,echo=FALSE}
+```{r setoptions, warning = FALSE, message = FALSE, echo = FALSE}
+
 library(skimr)
 library(caret)
 library(elasticnet)
+
 library(knitr)
-opts_chunk$set(echo=FALSE, warning=FALSE, message=FALSE, cache=TRUE)
-library(doParallel)
-num_core<-detectCores(logical = F)
-cl <- makePSOCKcluster(num_core)
-registerDoParallel(cl)
-rm(num_core)
+library(elasticnet)
+opts_chunk$set(
+echo = FALSE,
+warning = FALSE,
+message = FALSE,
+cache = TRUE
+)
+
 ```
 
 ## Introduction
@@ -35,37 +39,42 @@ All of data may be classified in 5 different fashions: exactly according to the 
 The goal of this course project is to predict the manner in which enthusiasts did the exercise.
 
 ```{r get data and preprocessing,cache=TRUE}
-if(!file.exists("pml_training.csv")){
-  trainingurl<-"https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
-  download.file(trainingurl,destfile = "pml_training.csv",method = "curl")
+if(!file.exists("pml_training.csv")) {
+  trainingurl <-
+  "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+  download.file(trainingurl, destfile = "pml_training.csv", method = "curl")
 }
-if(!file.exists("pml_testing.csv")){
-  testingurl<-"https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
-  download.file(testingurl,destfile = "pml_testing.csv",method = "curl")  
+if (!file.exists("pml_testing.csv")) {
+testingurl <-
+"https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+download.file(testingurl, destfile = "pml_testing.csv", method = "curl")
 }
 dat<-read.csv("pml_training.csv")
 forecasting<-read.csv("pml_testing.csv")
 
 #format the non-numeric variable data type to numeric.
-changfac<-function(x){as.numeric(as.character(x))}
-dat[,8:159]<-lapply(dat[,8:159],changfac)
-dat[,7]<-as.factor(dat[,7])
+changfac<-function(x) {
+as.numeric(as.character(x))
+}
+dat[, 8:159]<-lapply(dat[, 8:159], changfac)
+dat[, 7]<-as.factor(dat[, 7])
 
-forecasting[,8:159]<-lapply(forecasting[,8:159],changfac)
-forecasting[,7]<-as.factor(forecasting[,7])
+forecasting[, 8:159]<-lapply(forecasting[, 8:159], changfac)
+forecasting[, 7]<-as.factor(forecasting[, 7]
+)
 ```
-##data cleaning and preprocession. 
+##Data cleaning and preprocession. 
 - The response varible  
 The train data's summary is :
 ```{r train data vs. forecasting data,cache=TRUE}
-ind=(colnames(dat)==colnames(forecasting))
-train_class<-colnames(dat)[!ind]
-print(summary(dat[,c(2,6,160)]), type="html")
+ind = (colnames(dat) == colnames(forecasting))
+train_class <- colnames(dat)[!ind]
+print(summary(dat[, c(2, 6, 160)]), type = "html")
 ```
 The forecasting data's summary is:
 ```{r forecasting data,cache=TRUE}
-forecast_class<-colnames(forecasting)[!ind]
-print(summary(forecasting[,c(2,6)]),type="html")
+forecast_class <- colnames(forecasting)[!ind]
+print(summary(forecasting[, c(2, 6)]), type = "html")
 ```  
 We can find that the variables are different with 2 aspects in train data and the forecasting data. First, the difference is train data's response variable is `r train_class`, while forecast data's response variable is `r forecast_class`. Second, some columns in forecast data are totally NAs, while are not NAs in train data with lable "new_window", so the train data should be transform according to forecast data.  
 The question is finding a comfortable machine learning model with the train data to predict the forecast data's "problem_id".    
@@ -76,15 +85,21 @@ After look into all train variables, we find that forecasting variables doesn't 
 ```{r NAs processing,results='hide',cache=TRUE}
 #check NAs in both dataset.
 skimmed_train <- skim_to_wide(dat)
-skimmed_test<-skim_to_wide(forecasting)
+skimmed_test <- skim_to_wide(forecasting)
 #select valid train data according test data structure. store in data3.
-dat2<-skimmed_test[skimmed_test$missing=='20',]$variable
-length_na<-length(dat2)
-select_col<-names(dat)%in%dat2
-dat3<-dat[!select_col]
-forecasting1<-forecasting[!select_col]
+dat2 <- skimmed_test[skimmed_test$missing == '20', ]$variable
+length_na <- length(dat2)
+select_col <- names(dat) %in% dat2
+dat3 <- dat[!select_col]
+forecasting1 <- forecasting[!select_col]
 #eliminate redundant data, keep dat3,forecasting1.
-rm(dat,dat2,ind,skimmed_test,skimmed_train,select_col,changfac)
+rm(dat,
+dat2,
+ind,
+skimmed_test,
+skimmed_train,
+select_col,
+changfac)
 
 ```  
 There are `r length_na` of NAs relates to "new_window" , which will be removed in model establishing process.
@@ -97,23 +112,26 @@ Furthermore, there are so many variables that the column data are not comparable
 
 ```{r model prepare,results='hide'}
 # Step 1: Get row numbers for the training data
-trainRowNumbers <- createDataPartition(dat3$classe, p=0.7, list=FALSE)
+trainRowNumbers <-
+createDataPartition(dat3$classe, p = 0.7, list = FALSE)
 # Step 2: Create the training  dataset
-trainData <- dat3[trainRowNumbers,]
+trainData <- dat3[trainRowNumbers, ]
 # Step 3: Create the test dataset
-testData <- dat3[-trainRowNumbers,]
+testData <- dat3[-trainRowNumbers, ]
 
 #preprocess traindata with scale method.
-preProcess_scaldata_model <- preProcess(trainData[,8:59], method='scale')
+preProcess_scaldata_model <-
+preProcess(trainData[, 8:59], method = 'scale')
 preProcess_scaldata_model
 trainData <- predict(preProcess_scaldata_model, newdata = trainData)
 #make prediction on the testdata first scale on testdata.
-preProcess_scaldata_model <- preProcess(testData[,8:59], method='scale')
+preProcess_scaldata_model <-
+preProcess(testData[, 8:59], method = 'scale')
 preProcess_scaldata_model
 testData <- predict(preProcess_scaldata_model, newdata = testData)
 
-forecasting_model<-preProcess(forecasting1[,8:59],method = 'scale')
-forecasting1<-predict(forecasting_model,newdata=forecasting1)
+forecasting_model <- preProcess(forecasting1[, 8:59], method = 'scale')
+forecasting1 <- predict(forecasting_model, newdata = forecasting1)
 ```
 Next, I will apply the elastic net regression, LDA, QDA and Random forests model on the training data.
 
@@ -126,64 +144,89 @@ The classification model is evaluated by confusion matrix. This matrix is repres
 
 In order to decrease computational complexity, I will remove the highly correlated variables first.
 
-```{r remove highly correlated variables}
-x<-trainData[,8:59]
-y<-trainData$classe
+```{r remove highly correlated variables,echo=TRUE}
+x <- trainData[, 8:59]
+y <- trainData$classe
 correlationMatrix <- cor(x)
-highlyCorrelated <- findCorrelation(correlationMatrix, cutoff=0.75)
-name_correlated<-names(x[,highlyCorrelated])
-x<-x[,-c(highlyCorrelated)]
-
-trainData1<-data.frame(x,y)
-rm(correlationMatrix,preProcess_scaldata_model,trainRowNumbers,trainData,dat3)
+highlyCorrelated <- findCorrelation(correlationMatrix, cutoff = 0.75)
+name_correlated <- names(x[, highlyCorrelated])
+x <- x[, -c(highlyCorrelated)]
+trainData1 <- data.frame(x, y)
 ```
 
 After calculating correlation matrix, I will find attributes that are highly corrected with threshhold is 0.75. All highly correlated variables are: `r name_correlated`.  
+```{r, delete the redundant cache}
+rm(correlationMatrix,preProcess_scaldata_model,trainRowNumbers,trainData,dat3)
+```  
+There are many different metrics that we can use to evaluate machine learning algorithms in R. the default metrics used are accuracy for classification problems and RMSE for regression. But Logarithmic Loss or LogLoss is more common for multi-class classification algorithms. I will use LogLoss metrics of caret to evaluate below models. AT the same time, I will use cross validation to improve the performance of algorithms.
 
-
+```{r metric and CV setting, echo=TRUE}
+control <-
+  trainControl(
+  method = "cv",
+  number = 10,
+  classProbs = TRUE,
+  summaryFunction = mnLogLoss
+  )
+  library(doParallel)
+  num_core <- detectCores(logical = F)
+  cl <- makePSOCKcluster(num_core)
+  registerDoParallel(cl)
+  rm(num_core)
+```
 - Elastic_net_regression  
 
 The Elastic Net addresses “over-regularization” by balancing between LASSO and ridge penalties.  A hyper-parameter, Alpha, would be used to regularize the model and can be tuned easily by the cross-validation. The matching matrix and training accuracy is:  
 
-```{r elastic_net regressiong,cache=TRUE}
-library(elasticnet)
-elastic_model<-train(y~.,data=trainData1,method="glmnet")
-elastic_predictions <- predict(elastic_model,testData)
-# Model performance metrics
-table(elastic_predictions,testData$classe)
-mean(elastic_predictions==testData$classe)
+```{r elastic_net regressiong,cache=TRUE,echo=TRUE}
+elastic_model <-
+  train(
+  y ~ .,
+  data = trainData1,
+  method = "glmnet",
+  metric = "logLoss",
+  trControl = control
+  )
+  elastic_predictions <- predict(elastic_model, testData)
 ```
-We get the reasonable alpha and lambda:
-```{r print elastic_model, echo=FALSE}
-print(elastic_model$bestTune)
-```  
+We get the reasonable alpha and lambda: `r elastic_model$bestTune`.  
 
 - LDA and QDA model  
 The LDA algorithm uses this data to divide the space of predictor variables into regions. The model predicts the category of a new unseen case according to which region it lies in.  The LDA and QDA classification model's accuracy respectively are:
 
-```{r lda and qda model,cache=TRUE}
-stopCluster(cl)
-num_core<-detectCores(logical = F)
-cl <- makePSOCKcluster(num_core)
-registerDoParallel(cl)
-lda_model<-train(y~.,data=trainData1,method="lda")
-predi_lda<-predict(lda_model,testData)
-mean(predi_lda==testData$classe)
-
-qda_model<-train(y~.,data=trainData1,method="qda")
-predi_qda<-predict(qda_model,testData)
-mean(predi_qda==testData$classe)
+```{r lda and qda model,cache=TRUE,echo=TRUE}
+lda_model <- train(
+  y ~ .,
+  data = trainData1,
+  method = "lda",
+  metric = "logLoss",
+  trControl = control
+  )
+  predi_lda <- predict(lda_model, testData)
+  
+  qda_model <- train(
+  y ~ .,
+  data = trainData1,
+  method = "qda",
+  metric = "logLoss",
+  trControl = control
+  )
+  predi_qda <- predict(qda_model, testData)
 ```
 The linear boundaries are a consequence of assuming that the predictor variables for each category have the same multivariate Gaussian distribution. Above LDA accuacy shows that this assumption may not be true, if it is approximately valid then LDA can still perform well.
 
 - Random forests model  
 
 Below give the confusion matrix and accuracy:
-```{r random_forests model,cache=TRUE}
-rf_model<-train(y~.,data=trainData1,method="rf")
-rf_predictions <- predict(rf_model,testData)
-table(rf_predictions,testData$classe)
-mean(rf_predictions==testData$classe)
+```{r random_forests model,cache=TRUE,echo=TRUE}
+rf_model <- train(
+  y ~ .,
+  data = trainData1,
+  method = "rf",
+  metric = "logLoss",
+  trControl = control
+  )
+  rf_predictions <- predict(rf_model, testData)
 ```
 
 - Compare the 4 models to choose best one  
@@ -191,38 +234,38 @@ mean(rf_predictions==testData$classe)
 In order to evaluate performance of multiple machine learning algorithms, Caret provides the resamples() function where we can provide multiple machine learning models and collectively evaluate them. The results as:
 
 ```{r resamples_model,cache=TRUE}
-model_results<-resamples(list(ENM=elastic_model,RF=rf_model,LDA=lda_model,QDA=qda_model))
-#results<-resamples(list(elastic_model,lda_model,qda_model))
-summary(model_results)
-scales <- list(x=list(relation="free"), y=list(relation="free"))
-bwplot(model_results, scales=scales)
-
+model_results <-
+  resamples(list(
+  ENM = elastic_model,
+  RF = rf_model,
+  LDA = lda_model,
+  QDA = qda_model
+  ))
+  
+  summary(model_results)
+  scales <- list(x = list(relation = "free"),
+  y = list(relation = "free"))
+  bwplot(model_results, scales = scales)
+  accu_rf<-mean(rf_predictions==testData$classe)
+  stopCluster(cl)
 ```  
 
-The output clearly show the algorithms performed in terms of accuracy and kappa and how consistent has it been. Obviously  the Random forests is the best one.  
-We can plot the variables importance.  
+The output clearly show the algorithms performed in terms of logLoss metric and how consistent has it been. Logloss is minimized and we can see the optimal Random Forests model had a cp of `r rf_model$results$logLoss[3]`. So the Random forests is the best one, which has the accuracy of `r accu_rf`.  
+We can see the summary of Random Forests model and plot of the variables importance.  
 
 ```{r random forests variables plot}
+print(rf_model)
 varimp_rf<-varImp(rf_model)
 plot(varimp_rf)
-```  
-  
-I will use cross validation to improve the performance of Random forests. As below:
 
-```{r rf_model to forecast,cache=TRUE}
-rf_model1<-train(y~.,data=trainData1,method="rf",
-              trControl = trainControl("cv", number = 10))
-rf_model1
-```
+```  
 
 With this Random forests cross validation model, I predict the forecasting data:
 
 ```{r, close doparallel}
-
-forecasting_pred<-predict(rf_model1, newdata = forecasting1)
+forecasting_pred<-predict(rf_model, newdata = forecasting1)
 print(forecasting_pred)
 re<-table(forecasting_pred)
-stopCluster(cl)
 ```
 ##Conclusion  
 
