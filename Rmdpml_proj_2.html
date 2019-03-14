@@ -197,7 +197,10 @@ name_correlated &lt;- names(x[, highlyCorrelated])
 x &lt;- x[, -c(highlyCorrelated)]
 trainData1 &lt;- data.frame(x, y)</code></pre>
 <p>After calculating correlation matrix, I will find attributes that are highly corrected with threshhold is 0.75. All highly correlated variables are: accel_belt_z, roll_belt, accel_belt_y, accel_arm_y, total_accel_belt, accel_dumbbell_z, accel_belt_x, pitch_belt, magnet_dumbbell_x, accel_dumbbell_y, magnet_dumbbell_y, accel_dumbbell_x, accel_arm_x, accel_arm_z, magnet_arm_y, magnet_belt_z, accel_forearm_y, gyros_arm_x.</p>
-<p>There are many different metrics that we can use to evaluate machine learning algorithms in R. the default metrics used are accuracy for classification problems and RMSE for regression. But Logarithmic Loss or LogLoss is more common for multi-class classification algorithms. I will use LogLoss metrics of caret to evaluate below models. AT the same time, I will use cross validation to improve the performance of algorithms.</p>
+<ul>
+<li>Sample error and metrics of algorithms<br />
+The expected out of sample error must be considered. There are many different metrics that we can use to evaluate machine learning algorithms in R. the default metrics used are accuracy for classification problems and RMSE for regression. But Logarithmic Loss or LogLoss is more common for multi-class classification algorithms. I will use LogLoss metrics of caret to evaluate below models. AT the same time, I will use cross validation to improve the performance of algorithms.</li>
+</ul>
 <pre class="r"><code>control &lt;-
   trainControl(
   method = &quot;cv&quot;,

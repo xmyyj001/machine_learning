@@ -158,7 +158,8 @@ After calculating correlation matrix, I will find attributes that are highly cor
 ```{r, delete the redundant cache}
 rm(correlationMatrix,preProcess_scaldata_model,trainRowNumbers,trainData,dat3)
 ```  
-There are many different metrics that we can use to evaluate machine learning algorithms in R. the default metrics used are accuracy for classification problems and RMSE for regression. But Logarithmic Loss or LogLoss is more common for multi-class classification algorithms. I will use LogLoss metrics of caret to evaluate below models. AT the same time, I will use cross validation to improve the performance of algorithms.
+- Sample error and metrics of algorithms  
+The expected out of sample error must be considered. There are many different metrics that we can use to evaluate machine learning algorithms in R. the default metrics used are accuracy for classification problems and RMSE for regression. But Logarithmic Loss or LogLoss is more common for multi-class classification algorithms. I will use LogLoss metrics of caret to evaluate below models. AT the same time, I will use cross validation to improve the performance of algorithms.
 
 ```{r metric and CV setting, echo=TRUE}
 control <-
